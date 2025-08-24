@@ -2,10 +2,12 @@ const jwt = require("jsonwebtoken");
 
 const auth = async (req, res, next) => {
   try {
-    const token = req.header("Authorization")?.replace("Bearer", "");
+    const token = req.header("Authorization")?.replace("Bearer ", "");
 
     if (!token) {
-      throw new Error();
+      return res
+        .status(401)
+        .json({ error: "Erişim izni yok. Lütfen giriş yapın." });
     }
 
     const decoded = jwt.verify(token, process.env.JWT_SECRET);
@@ -13,8 +15,19 @@ const auth = async (req, res, next) => {
     req.user = decoded;
     next();
   } catch (error) {
-    res.status(401).json({ error: "Please authenticate" });
+    res.status(401).json({ error: "Geçersiz veya süresi dolmuş token." });
   }
 };
 
-module.exports = auth;
+const authorizeRoles = (...roles) => {
+  return (req, res, next) => {
+    if (!roles.includes(req.user.role)) {
+      return res
+        .status(403)
+        .json({ message: "Bu işlemi yapmak için yetkiniz yok." });
+    }
+    next();
+  };
+};
+
+module.exports = { auth, authorizeRoles };

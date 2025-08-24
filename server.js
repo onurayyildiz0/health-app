@@ -3,6 +3,7 @@ const mongoose = require("mongoose");
 const doctorRoutes = require("./routes/doctorRoutes");
 const userRoutes = require("./routes/userRoutes");
 const appointmenRoutes = require("./routes/appointmentRoutes");
+const adminRoutes = require("./routes/adminRoutes");
 
 require("dotenv").config();
 
@@ -11,6 +12,7 @@ app.use(express.json());
 app.use("/api/doctors", doctorRoutes);
 app.use("/api/users", userRoutes);
 app.use("/api/appointments", appointmenRoutes);
+app.use("/api/admin", adminRoutes);
 
 mongoose
   .connect(process.env.MONGO_URL)

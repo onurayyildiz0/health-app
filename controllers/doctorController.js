@@ -5,7 +5,7 @@ const User = require("../models/User"); // User modelini ekliyoruz
 const createDoctor = async (req, res) => {
   try {
     // Kullanıcının "doctor" rolüne sahip olup olmadığını kontrol et
-    const user = await User.findById(req.body.user);
+    const user = await User.findById(req.user.id);
     if (!user || user.role !== "doctor") {
       return res.status(400).json({
         message:
@@ -14,7 +14,7 @@ const createDoctor = async (req, res) => {
     }
 
     const doctor = new Doctor({
-      user: req.body.user, // User'ın _id'si
+      user: req.user.id, // User'ın _id'si
       speciality: req.body.speciality,
       clocks: req.body.clocks,
     });
@@ -82,50 +82,104 @@ const updateDoctor = async (req, res) => {
 
 const getDoctorsBySpeciality = async (req, res) => {
   try {
-    const speciality = req.query.speciality;
-    const doctors = await Doctor.find(
-      speciality ? { speciality } : {}
-    ).populate("user");
+    const { speciality, sort } = req.query;
+
+    // Filtreleme
+    const filter = speciality ? { speciality } : {};
+
+    // Sıralama
+    const sortOption =
+      sort === "asc" ? { name: 1 } : sort === "desc" ? { name: -1 } : {};
+
+    const doctors = await Doctor.find(filter).populate("user").sort(sortOption);
     res.status(200).json(doctors);
   } catch (error) {
-    res.status(500).json({ message: error.message });
+    res
+      .status(500)
+      .json({ message: "Doktorlar alınırken bir hata oluştu.", error });
   }
 };
 
 const getDoctorReviews = async (req, res) => {
   try {
     const doctorId = req.params.id;
+
+    // Değerlendirmeleri al
     const reviews = await Review.find({ doctor: doctorId }).sort({
       rating: -1,
     });
-    res.status(200).json(reviews);
+
+    // Ortalama puan ve değerlendirme sayısını hesapla
+    const totalReviews = reviews.length;
+    const averageRating =
+      totalReviews > 0
+        ? reviews.reduce((sum, review) => sum + review.rating, 0) / totalReviews
+        : 0;
+
+    res.status(200).json({
+      reviews,
+      totalReviews,
+      averageRating: averageRating.toFixed(1), // Ondalıklı sayı formatı
+    });
   } catch (error) {
-    res.status(500).json({ message: error.message });
+    res
+      .status(500)
+      .json({ message: "Değerlendirmeler alınırken bir hata oluştu.", error });
   }
 };
 
 const getDoctorsByMaxRating = async (req, res) => {
   try {
-    // Tüm doktorları çek
-    const doctors = await Doctor.find();
-    // Her doktorun en yüksek puanlı review'unu bul
-    const doctorRatings = await Promise.all(
-      doctors.map(async (doctor) => {
-        const maxReview = await Review.find({ doctor: doctor._id })
-          .sort({ rating: -1 })
-          .limit(1);
-        return {
-          doctor,
-          maxRating: maxReview[0] ? maxReview[0].rating : 0,
-        };
-      })
-    );
-    // Doktorları en yüksek puana göre sırala
-    doctorRatings.sort((a, b) => b.maxRating - a.maxRating);
-    // Sadece doktorları döndür
-    res.status(200).json(doctorRatings.map((item) => item.doctor));
+    const doctorRatings = await Review.aggregate([
+      {
+        $group: {
+          _id: "$doctor",
+          maxRating: { $max: "$rating" },
+        },
+      },
+      {
+        $lookup: {
+          from: "doctors",
+          localField: "_id",
+          foreignField: "_id",
+          as: "doctor",
+        },
+      },
+      {
+        $sort: { maxRating: -1 },
+      },
+    ]);
+
+    res.status(200).json(doctorRatings.map((item) => item.doctor[0]));
   } catch (error) {
-    res.status(500).json({ message: error.message });
+    res
+      .status(500)
+      .json({ message: "Doktorlar sıralanırken bir hata oluştu.", error });
+  }
+};
+
+const setDoctorSchedule = async (req, res) => {
+  try {
+    const { clocks } = req.body;
+
+    const doctor = await Doctor.findOneAndUpdate(
+      { user: req.user.id },
+      { clocks },
+      { new: true }
+    );
+
+    if (!doctor) {
+      return res.status(404).json({ message: "Doktor bulunamadı." });
+    }
+
+    res
+      .status(200)
+      .json({ message: "Çalışma saatleri başarıyla güncellendi.", doctor });
+  } catch (error) {
+    res.status(500).json({
+      message: "Çalışma saatleri güncellenirken bir hata oluştu.",
+      error,
+    });
   }
 };
 
@@ -138,4 +192,5 @@ module.exports = {
   getDoctorsBySpeciality,
   getDoctorReviews,
   getDoctorsByMaxRating,
+  setDoctorSchedule,
 };
