@@ -43,7 +43,23 @@ const getAllUsers = async (req, res) => {
   }
 };
 
+const approveDoctor = async (req, res, next) => {
+  try {
+    const user = await User.findByIdAndUpdate(
+      req.params.id,
+      { isDoctorApproved: true },
+      { new: true }
+    );
+    if (!user) return next(new ApiError(404, "Kullanıcı bulunamadı"));
+    res.json({ message: "Doktor onaylandı", user });
+  } catch (err) {
+    next(err);
+  }
+};
+module.exports = { createAdmin, getAllUsers, approveDoctor };
+
 module.exports = {
   createAdmin,
   getAllUsers,
+  approveDoctor,
 };

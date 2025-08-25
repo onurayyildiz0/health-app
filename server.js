@@ -1,27 +1,34 @@
-const express = require("express");
-const mongoose = require("mongoose");
-const doctorRoutes = require("./routes/doctorRoutes");
-const userRoutes = require("./routes/userRoutes");
-const appointmenRoutes = require("./routes/appointmentRoutes");
-const adminRoutes = require("./routes/adminRoutes");
-const reviewRoutes = require("./routes/reviewRoutes");
-
 require("dotenv").config();
+const app = require("./app");
+const connectDB = require("./config/db");
+const logger = require("./config/logger");
 
-const app = express();
-app.use(express.json());
-app.use("/api/doctors", doctorRoutes);
-app.use("/api/users", userRoutes);
-app.use("/api/appointments", appointmenRoutes);
-app.use("/api/admin", adminRoutes);
-app.use("/api/reviews", reviewRoutes);
+const PORT = process.env.PORT || 5001;
 
-mongoose
-  .connect(process.env.MONGO_URL)
-  .then(() => console.log("MongoDB connected successfully"))
-  .catch((err) => console.error("MongoDB connection error:", err));
+// MongoDB bağlantısı
+connectDB();
 
-const PORT = process.env.PORT;
-app.listen(PORT, () => {
-  console.log(`server is running on port ${PORT}`);
+// Server başlat
+const server = app.listen(PORT, () => {
+  logger.info(
+    `Server ${process.env.NODE_ENV} modunda ${PORT} portunda çalışıyor`
+  );
 });
+
+// Graceful shutdown
+process.on("SIGTERM", () => {
+  logger.info("SIGTERM sinyali alındı, sunucu kapatılıyor...");
+  server.close(() => {
+    logger.info("Sunucu kapatıldı");
+    process.exit(0);
+  });
+});
+
+process.on("unhandledRejection", (err) => {
+  logger.error("Unhandled Promise Rejection:", err);
+  server.close(() => {
+    process.exit(1);
+  });
+});
+
+module.exports = server;
