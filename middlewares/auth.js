@@ -1,8 +1,15 @@
 const jwt = require("jsonwebtoken");
+const accessTokenBlacklist = require("../utils/tokenBlacklist");
 
 const auth = async (req, res, next) => {
   try {
     const token = req.header("Authorization")?.replace("Bearer ", "");
+
+    if (accessTokenBlacklist.includes(token)) {
+      return res
+        .status(401)
+        .json({ error: "Geçersiz veya logout edilmiş token." });
+    }
 
     if (!token) {
       return res
@@ -10,7 +17,7 @@ const auth = async (req, res, next) => {
         .json({ error: "Erişim izni yok. Lütfen giriş yapın." });
     }
 
-    const decoded = jwt.verify(token, process.env.JWT_SECRET);
+    const decoded = jwt.verify(token, process.env.JWT_ACCESS_SECRET);
     req.userId = decoded.id;
     req.user = decoded;
     next();

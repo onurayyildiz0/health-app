@@ -22,6 +22,7 @@ const createDoctor = async (req, res) => {
     res.status(201).json(doctor);
   } catch (error) {
     res.status(500).json({ message: "Error creating doctor", error });
+    console.log(error);
   }
 };
 

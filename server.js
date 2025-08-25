@@ -4,6 +4,7 @@ const doctorRoutes = require("./routes/doctorRoutes");
 const userRoutes = require("./routes/userRoutes");
 const appointmenRoutes = require("./routes/appointmentRoutes");
 const adminRoutes = require("./routes/adminRoutes");
+const reviewRoutes = require("./routes/reviewRoutes");
 
 require("dotenv").config();
 
@@ -13,6 +14,7 @@ app.use("/api/doctors", doctorRoutes);
 app.use("/api/users", userRoutes);
 app.use("/api/appointments", appointmenRoutes);
 app.use("/api/admin", adminRoutes);
+app.use("/api/reviews", reviewRoutes);
 
 mongoose
   .connect(process.env.MONGO_URL)

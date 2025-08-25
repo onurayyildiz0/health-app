@@ -13,7 +13,9 @@ const {
   setDoctorSchedule,
 } = require("../controllers/doctorController");
 
-router.post("/", createDoctor);
+const { auth } = require("../middlewares/auth");
+
+router.post("/", auth, createDoctor);
 router.get("/", getDoctorsBySpeciality); // /api/doctors?speciality=Kardiyoloji
 router.get("/max-rating", getDoctorsByMaxRating);
 router.get("/:id", getDoctorById);

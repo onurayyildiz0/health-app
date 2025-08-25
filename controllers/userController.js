@@ -1,6 +1,7 @@
 const User = require("../models/User");
 const bcrypt = require("bcryptjs");
 const jwt = require("jsonwebtoken");
+const { generateAccessToken, generateRefreshToken } = require("../utils/jwt");
 
 // Kullanıcı kaydı
 const registerUser = async (req, res) => {
@@ -31,14 +32,18 @@ const registerUser = async (req, res) => {
     });
     await user.save();
 
-    const token = jwt.sign(
-      { id: user._id, role: user.role },
-      process.env.JWT_SECRET,
-      { expiresIn: "1h" }
-    );
+    const accessToken = generateAccessToken({ id: user._id, role: user.role });
+    const refreshToken = generateRefreshToken({
+      id: user._id,
+      role: user.role,
+    });
+
+    user.refreshTokens.push(refreshToken);
+    await user.save();
 
     res.status(201).json({
-      token,
+      accessToken,
+      refreshToken,
       user: { id: user._id, name: user.name, role: user.role },
     });
   } catch (error) {
@@ -64,15 +69,18 @@ const loginUser = async (req, res) => {
       return res.status(401).json({ message: "Geçersiz şifre. " });
     }
 
-    //JWT token oluştur
-    const token = jwt.sign(
-      { id: user._id, role: user.role },
-      process.env.JWT_SECRET,
-      { expiresIn: "1h" }
-    );
+    const accessToken = generateAccessToken({ id: user._id, role: user.role });
+    const refreshToken = generateRefreshToken({
+      id: user._id,
+      role: user.role,
+    });
+
+    user.refreshTokens.push(refreshToken);
+    await user.save();
 
     res.status(200).json({
-      token,
+      accessToken,
+      refreshToken,
       user: { id: user._id, name: user.name, role: user.role },
     });
   } catch (error) {
