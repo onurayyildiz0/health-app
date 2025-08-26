@@ -13,6 +13,12 @@ const createDoctor = async (req, res) => {
       });
     }
 
+    if (!user.isDoctorApproved) {
+      return res
+        .status(403)
+        .json({ message: "Doktor henüz admin tarafından onaylanmadı." });
+    }
+
     const doctor = new Doctor({
       user: req.user.id, // User'ın _id'si
       speciality: req.body.speciality,

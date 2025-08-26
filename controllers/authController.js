@@ -1,4 +1,5 @@
 const User = require("../models/User");
+const bcrypt = require("bcryptjs");
 const ApiError = require("../utils/ApiError");
 const ApiResponse = require("../utils/ApiResponse");
 const asyncHandler = require("../utils/asyncHandler");
@@ -18,11 +19,13 @@ const register = asyncHandler(async (req, res, next) => {
     return next(new ApiError(400, "Bu email adresi zaten kayıtlı"));
   }
 
+  const hashedPassword = await bcrypt.hash(password, 10);
+
   // Kullanıcı oluştur
   const user = await User.create({
     name,
     email,
-    password,
+    password: hashedPassword,
     role,
   });
 
