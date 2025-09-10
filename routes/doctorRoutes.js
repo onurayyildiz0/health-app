@@ -13,6 +13,7 @@ const {
   getDoctorReviews,
   getDoctorsByMaxRating,
   setDoctorSchedule,
+  addHealthHistory,
 } = require("../controllers/doctorController");
 
 const { auth, authorizeRoles } = require("../middlewares/auth");
@@ -75,5 +76,11 @@ router.delete("/:id", deleteDoctor);
 router.put("/:id", updateDoctor);
 router.get("/:id/reviews", getDoctorReviews);
 router.put("/me/schedule", setDoctorSchedule);
+router.post(
+  "/health-history",
+  auth,
+  authorizeRoles("doctor"),
+  addHealthHistory
+);
 
 module.exports = router;

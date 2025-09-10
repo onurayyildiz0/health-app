@@ -190,6 +190,17 @@ const setDoctorSchedule = async (req, res) => {
   }
 };
 
+const addHealthHistory = async (req, res) => {
+  const patientId = req.body.patientId; // Doktor, hastanın id'sini body'den göndermeli
+  const { diagnosis, treatment, notes } = req.body;
+  await User.findByIdAndUpdate(
+    patientId, // HASTANIN id'si!
+    { $push: { healthHistory: { diagnosis, treatment, notes } } },
+    { new: true }
+  );
+  res.json({ success: true, message: "Sağlık geçmişi eklendi." });
+};
+
 module.exports = {
   createDoctor,
   //getAllDoctors,
@@ -200,4 +211,5 @@ module.exports = {
   getDoctorReviews,
   getDoctorsByMaxRating,
   setDoctorSchedule,
+  addHealthHistory,
 };

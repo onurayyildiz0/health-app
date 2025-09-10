@@ -16,6 +16,20 @@ const userSchema = new mongoose.Schema({
     type: Boolean,
     default: false,
   },
+  favorites: [
+    {
+      type: mongoose.Schema.Types.ObjectId,
+      ref: "Doctor",
+    },
+  ],
+  healthHistory: [
+    {
+      date: { type: Date, default: Date.now },
+      diagnosis: String,
+      treatment: String,
+      notes: String,
+    },
+  ],
 });
 
 // Şifre karşılaştırma metodu

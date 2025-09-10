@@ -41,8 +41,49 @@ const updateProfile = async (req, res) => {
   }
 };
 
+const getFavoriteDoctors = async (req, res) => {
+  const user = await User.findById(req.user.id).populate("favorites");
+  if (!user) {
+    return res
+      .status(404)
+      .json({ success: false, message: "Kullanıcı bulunamadı." });
+  }
+  res.json({ favorites: user.favorites });
+};
+
+const addFavoriteDoctor = async (req, res) => {
+  const userId = req.user.id;
+  const doctorId = req.body.doctorId;
+  await User.findByIdAndUpdate(
+    userId,
+    { $addToSet: { favorites: doctorId } },
+    { new: true }
+  );
+  res.json({ success: true, message: "Favori doktora eklendi." });
+};
+
+const removeFavoriteDoctor = async (req, res) => {
+  const userId = req.user.id;
+  const doctorId = req.params.doctorId;
+  await User.findByIdAndUpdate(
+    userId,
+    { $pull: { favorites: doctorId } },
+    { new: true }
+  );
+  res.json({ success: true, message: "Favori doktor kaldırıldı." });
+};
+
+const getHealthHistory = async (req, res) => {
+  const user = await User.findById(req.user.id);
+  res.json({ healthHistory: user.healthHistory });
+};
+
 module.exports = {
   getProfile,
+  addFavoriteDoctor,
+  removeFavoriteDoctor,
+  getFavoriteDoctors,
 
+  getHealthHistory,
   updateProfile,
 };
