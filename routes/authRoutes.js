@@ -8,7 +8,7 @@ const {
   refreshValidation,
 } = require("../validators/authValidators");
 const { auth } = require("../middlewares/auth");
-const { register, login, refresh, logout } = authController;
+const { register, login, refresh, logout, verifyEmail } = authController;
 
 // Kayıt
 router.post("/register", registerValidation, validate, register);
@@ -21,5 +21,7 @@ router.post("/refresh", refreshValidation, validate, refresh);
 
 // Çıkış (korumalı route, refresh token ile çıkış)
 router.post("/logout", auth, logout);
+
+router.get("/verify/:token", verifyEmail);
 
 module.exports = router;

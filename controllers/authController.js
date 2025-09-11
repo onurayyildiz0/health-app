@@ -1,5 +1,7 @@
 const User = require("../models/User");
 const bcrypt = require("bcryptjs");
+const crypto = require("crypto");
+const nodemailer = require("nodemailer");
 const ApiError = require("../utils/ApiError");
 const ApiResponse = require("../utils/ApiResponse");
 const asyncHandler = require("../utils/asyncHandler");
@@ -8,6 +10,28 @@ const {
   signRefreshToken,
   verifyRefreshToken,
 } = require("../utils/jwt");
+
+//E-posta gönderme fonksiyonu
+async function sendVerificationEmail(userEmail, token, subject, text) {
+  const transporter = nodemailer.createTransport({
+    service: "Gmail",
+    auth: {
+      user: process.env.EMAIL_USER, // kendi gmail adresin
+      pass: process.env.EMAIL_PASS, // uygulama şifren
+    },
+  });
+
+  const mailOptions = {
+    from: "hospital@example.com",
+    to: userEmail,
+    subject: subject || "Hesap Doğrulama",
+    text:
+      text ||
+      `Hesabınızı doğrulamak için şu linke tıklayın: http://localhost:${process.env.PORT}/api/auth/verify/${token}`,
+  };
+
+  await transporter.sendMail(mailOptions);
+}
 
 // Kayıt
 const register = asyncHandler(async (req, res, next) => {
@@ -21,34 +45,47 @@ const register = asyncHandler(async (req, res, next) => {
 
   const hashedPassword = await bcrypt.hash(password, 10);
 
+  // Doğrulama tokenı oluştur
+  const verificationToken = crypto.randomBytes(32).toString("hex");
+
   // Kullanıcı oluştur
   const user = await User.create({
     name,
     email,
     password: hashedPassword,
     role,
+    isVerified: false,
+    verificationToken,
   });
 
-  // Token'lar oluştur
-  const payload = { id: user._id, role: user.role };
-  const accessToken = signAccessToken(payload);
-  const refreshToken = signRefreshToken(payload);
-
-  // Refresh token'ı kaydet
-  user.refreshTokens.push(refreshToken);
-  await user.save();
+  // Doğrulama maili gönder
+  await sendVerificationEmail(user.email, verificationToken);
 
   res.status(201).json(
-    new ApiResponse(201, "Kayıt başarılı", {
+    new ApiResponse(201, "Kayıt başarılı. Lütfen e-postanızı doğrulayın.", {
       user,
-      tokens: {
-        accessToken,
-        refreshToken,
-      },
     })
   );
 });
 
+const verifyEmail = asyncHandler(async (req, res, next) => {
+  const { token } = req.params;
+  const user = await User.findOne({ verificationToken: token });
+  if (!user) {
+    return next(
+      new ApiError(400, "Geçersiz veya süresi dolmuş doğrulama linki.")
+    );
+  }
+  user.isVerified = true;
+  user.verificationToken = undefined;
+  await user.save();
+  res.json(
+    new ApiResponse(
+      200,
+      "E-posta başarıyla doğrulandı. Artık giriş yapabilirsiniz."
+    )
+  );
+});
 // Giriş
 const login = asyncHandler(async (req, res, next) => {
   const { email, password } = req.body;
@@ -57,6 +94,13 @@ const login = asyncHandler(async (req, res, next) => {
   const user = await User.findOne({ email }).select("+password");
   if (!user || !(await user.comparePassword(password))) {
     return next(new ApiError(401, "Geçersiz email veya şifre"));
+  }
+
+  // E-posta doğrulama kontrolü
+  if (!user.isVerified) {
+    return next(
+      new ApiError(401, "Lütfen önce e-posta adresinizi doğrulayın.")
+    );
   }
 
   // Token'lar oluştur
@@ -129,4 +173,6 @@ module.exports = {
   login,
   refresh,
   logout,
+  verifyEmail,
+  sendVerificationEmail,
 };

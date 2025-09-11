@@ -21,6 +21,7 @@ const appointmentSchema = new mongoose.Schema({
   },
   notes: String,
   createdAt: { type: Date, default: Date.now },
+  reminderSent: { type: Boolean, default: false },
 });
 
 module.exports = mongoose.model("Appointment", appointmentSchema);
