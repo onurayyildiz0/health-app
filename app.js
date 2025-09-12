@@ -43,11 +43,25 @@ const swaggerOptions = {
     info: {
       title: "Health and Appointment System API",
       version: "1.0.0",
-      description: "API dokümantasyon",
+      description: "API dokümantasyonu",
     },
     servers: [
       {
         url: "http://localhost:" + (process.env.PORT || 3000),
+      },
+    ],
+    components: {
+      securitySchemes: {
+        bearerAuth: {
+          type: "http",
+          scheme: "bearer",
+          bearerFormat: "JWT",
+        },
+      },
+    },
+    security: [
+      {
+        bearerAuth: [],
       },
     ],
   },
