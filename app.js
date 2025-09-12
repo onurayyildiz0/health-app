@@ -3,6 +3,8 @@ const morgan = require("morgan");
 const { notFound, errorHandler } = require("./middlewares/error");
 const applySecurity = require("./middlewares/security");
 const xss = require("xss");
+const swaggerUi = require("swagger-ui-express");
+const swaggerJsdoc = require("swagger-jsdoc");
 
 // Routes import
 const authRoutes = require("./routes/authRoutes");
@@ -34,6 +36,26 @@ app.get("/health", (req, res) => {
     timestamp: new Date().toISOString(),
   });
 });
+
+const swaggerOptions = {
+  definition: {
+    openapi: "3.0.0",
+    info: {
+      title: "Health and Appointment System API",
+      version: "1.0.0",
+      description: "API dokümantasyon",
+    },
+    servers: [
+      {
+        url: "http://localhost:" + (process.env.PORT || 3000),
+      },
+    ],
+  },
+  apis: ["./routes/*.js"],
+};
+
+const swaggerSpec = swaggerJsdoc(swaggerOptions);
+app.use("/api-docs", swaggerUi.serve, swaggerUi.setup(swaggerSpec));
 
 // API Routes
 app.use("/api/auth", authRoutes);

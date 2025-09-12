@@ -11,6 +11,42 @@ const {
 
 const { auth, authorizeRoles } = require("../middlewares/auth");
 
+// Yeni randevu oluştur
+/**
+ * @swagger
+ * /api/appointments:
+ *   post:
+ *     summary: Yeni randevu oluşturur
+ *     tags: [Appointment]
+ *     security:
+ *       - bearerAuth: []
+ *     requestBody:
+ *       required: true
+ *       content:
+ *         application/json:
+ *           schema:
+ *             type: object
+ *             properties:
+ *               doctor:
+ *                 type: string
+ *                 description: Doktorun MongoDB ID'si
+ *               date:
+ *                 type: string
+ *                 format: date-time
+ *                 description: Randevu tarihi (ISO 8601)
+ *               start:
+ *                 type: string
+ *                 description: Başlangıç saati (HH:mm)
+ *               end:
+ *                 type: string
+ *                 description: Bitiş saati (HH:mm)
+ *               notes:
+ *                 type: string
+ *                 description: Not (isteğe bağlı)
+ *     responses:
+ *       201:
+ *         description: Randevu başarıyla oluşturuldu
+ */
 router.post(
   "/",
   [
@@ -44,9 +80,64 @@ router.post(
   authorizeRoles("patient"),
   createAppointment
 );
+
+// Doktorun randevularını getir
+/**
+ * @swagger
+ * /api/appointments/doctor:
+ *   get:
+ *     summary: Doktorun tüm randevularını getirir
+ *     tags: [Appointment]
+ *     security:
+ *       - bearerAuth: []
+ *     responses:
+ *       200:
+ *         description: Doktorun randevuları listelendi
+ */
 router.get("/doctor", auth, authorizeRoles("doctor"), getDoctorAppointments);
+
+// Randevu detaylarını getir
+/**
+ * @swagger
+ * /api/appointments/{id}:
+ *   get:
+ *     summary: Randevu detaylarını getirir
+ *     tags: [Appointment]
+ *     security:
+ *       - bearerAuth: []
+ *     parameters:
+ *       - in: path
+ *         name: id
+ *         schema:
+ *           type: string
+ *         required: true
+ *         description: Randevu ID'si
+ *     responses:
+ *       200:
+ *         description: Randevu detayları
+ */
 router.get("/:id", auth, getAppointmentDetails);
 
+// Randevu iptal et
+/**
+ * @swagger
+ * /api/appointments/{id}/cancel:
+ *   patch:
+ *     summary: Randevuyu iptal eder
+ *     tags: [Appointment]
+ *     security:
+ *       - bearerAuth: []
+ *     parameters:
+ *       - in: path
+ *         name: id
+ *         schema:
+ *           type: string
+ *         required: true
+ *         description: Randevu ID'si
+ *     responses:
+ *       200:
+ *         description: Randevu başarıyla iptal edildi
+ */
 router.patch(
   "/:id/cancel",
   [

@@ -18,6 +18,35 @@ const {
 
 const { auth, authorizeRoles } = require("../middlewares/auth");
 
+// Yeni doktor oluştur
+/**
+ * @swagger
+ * /api/doctors:
+ *   post:
+ *     summary: Yeni doktor oluşturur
+ *     tags: [Doctor]
+ *     security:
+ *       - bearerAuth: []
+ *     requestBody:
+ *       required: true
+ *       content:
+ *         application/json:
+ *           schema:
+ *             type: object
+ *             properties:
+ *               user:
+ *                 type: string
+ *                 description: Kullanıcı ID'si
+ *               speciality:
+ *                 type: string
+ *                 description: Branş
+ *               clocks:
+ *                 type: object
+ *                 description: Haftalık çalışma saatleri
+ *     responses:
+ *       201:
+ *         description: Doktor başarıyla oluşturuldu
+ */
 router.post(
   "/",
   [
@@ -69,13 +98,177 @@ router.post(
   authorizeRoles("admin", "doctor"), // veya uygun rol
   createDoctor // controller fonksiyonun adı
 );
+
+// Branşa göre doktorları getir
+/**
+ * @swagger
+ * /api/doctors:
+ *   get:
+ *     summary: Branşa göre doktorları listeler
+ *     tags: [Doctor]
+ *     parameters:
+ *       - in: query
+ *         name: speciality
+ *         schema:
+ *           type: string
+ *         required: false
+ *         description: Branş adı (isteğe bağlı)
+ *     responses:
+ *       200:
+ *         description: Doktor listesi
+ */
 router.get("/", getDoctorsBySpeciality); // /api/doctors?speciality=Kardiyoloji
+
+// En yüksek puanlı doktorlar
+/**
+ * @swagger
+ * /api/doctors/max-rating:
+ *   get:
+ *     summary: En yüksek puanlı doktorları getirir
+ *     tags: [Doctor]
+ *     responses:
+ *       200:
+ *         description: En yüksek puanlı doktorlar listelendi
+ */
 router.get("/max-rating", getDoctorsByMaxRating);
+// Doktor detayları
+/**
+ * @swagger
+ * /api/doctors/{id}:
+ *   get:
+ *     summary: Doktor detaylarını getirir
+ *     tags: [Doctor]
+ *     parameters:
+ *       - in: path
+ *         name: id
+ *         schema:
+ *           type: string
+ *         required: true
+ *         description: Doktor ID'si
+ *     responses:
+ *       200:
+ *         description: Doktor detayları
+ */
 router.get("/:id", getDoctorById);
+// Doktor sil
+/**
+ * @swagger
+ * /api/doctors/{id}:
+ *   delete:
+ *     summary: Doktoru siler
+ *     tags: [Doctor]
+ *     security:
+ *       - bearerAuth: []
+ *     parameters:
+ *       - in: path
+ *         name: id
+ *         schema:
+ *           type: string
+ *         required: true
+ *         description: Doktor ID'si
+ *     responses:
+ *       200:
+ *         description: Doktor başarıyla silindi
+ */
 router.delete("/:id", deleteDoctor);
+// Doktor güncelle
+/**
+ * @swagger
+ * /api/doctors/{id}:
+ *   put:
+ *     summary: Doktoru günceller
+ *     tags: [Doctor]
+ *     security:
+ *       - bearerAuth: []
+ *     parameters:
+ *       - in: path
+ *         name: id
+ *         schema:
+ *           type: string
+ *         required: true
+ *         description: Doktor ID'si
+ *     requestBody:
+ *       required: true
+ *       content:
+ *         application/json:
+ *           schema:
+ *             type: object
+ *             properties:
+ *               speciality:
+ *                 type: string
+ *               clocks:
+ *                 type: object
+ *     responses:
+ *       200:
+ *         description: Doktor başarıyla güncellendi
+ */
 router.put("/:id", updateDoctor);
+// Doktorun yorumları
+/**
+ * @swagger
+ * /api/doctors/{id}/reviews:
+ *   get:
+ *     summary: Doktorun yorumlarını getirir
+ *     tags: [Doctor]
+ *     parameters:
+ *       - in: path
+ *         name: id
+ *         schema:
+ *           type: string
+ *         required: true
+ *         description: Doktor ID'si
+ *     responses:
+ *       200:
+ *         description: Doktorun yorumları listelendi
+ */
 router.get("/:id/reviews", getDoctorReviews);
+// Doktor kendi çalışma saatini günceller
+/**
+ * @swagger
+ * /api/doctors/me/schedule:
+ *   put:
+ *     summary: Doktor kendi çalışma saatini günceller
+ *     tags: [Doctor]
+ *     security:
+ *       - bearerAuth: []
+ *     requestBody:
+ *       required: true
+ *       content:
+ *         application/json:
+ *           schema:
+ *             type: object
+ *             properties:
+ *               clocks:
+ *                 type: object
+ *     responses:
+ *       200:
+ *         description: Çalışma saatleri güncellendi
+ */
 router.put("/me/schedule", setDoctorSchedule);
+// Sağlık geçmişi ekle
+/**
+ * @swagger
+ * /api/doctors/health-history:
+ *   post:
+ *     summary: Hastaya sağlık geçmişi ekler
+ *     tags: [Doctor]
+ *     security:
+ *       - bearerAuth: []
+ *     requestBody:
+ *       required: true
+ *       content:
+ *         application/json:
+ *           schema:
+ *             type: object
+ *             properties:
+ *               patientId:
+ *                 type: string
+ *               description:
+ *                 type: string
+ *     responses:
+ *       201:
+ *         description: Sağlık geçmişi başarıyla eklendi
+ */
 router.post(
   "/health-history",
   auth,
