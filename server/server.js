@@ -9,6 +9,8 @@ const { sendVerificationEmail } = require("./controllers/authController");
 
 const PORT = process.env.PORT || 5001;
 
+if (process.nextTick.NODE_ENV !== "test") {
+}
 // MongoDB bağlantısı
 connectDB();
 
