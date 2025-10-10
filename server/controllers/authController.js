@@ -11,14 +11,66 @@ const {
   verifyRefreshToken,
 } = require("../utils/jwt");
 
-//E-posta gönderme fonksiyonu
+// Kayıt
+const register = asyncHandler(async (req, res, next) => {
+  const { name, email, password, role } = req.body;
+
+  try {
+    // Email kontrolü
+    const existingUser = await User.findOne({ email });
+    if (existingUser) {
+      return next(new ApiError(400, "Bu email adresi zaten kayıtlı"));
+    }
+
+    // Şifreyi hashle
+    const hashedPassword = await bcrypt.hash(password, 10);
+
+    // Doğrulama tokenı oluştur
+    const verificationToken = crypto.randomBytes(32).toString("hex");
+
+    // Kullanıcı oluştur
+    const user = await User.create({
+      name,
+      email,
+      password: hashedPassword,
+      role,
+      isVerified: false,
+      verificationToken,
+    });
+
+    // 🔹 Response’u hemen dön (mail beklenmeden)
+    res.status(201).json(
+      new ApiResponse(201, "Kayıt başarılı. Lütfen e-postanızı doğrulayın.", {
+        user: {
+          _id: user._id,
+          name: user.name,
+          email: user.email,
+          role: user.role,
+          isVerified: user.isVerified,
+        },
+      })
+    );
+
+    // 🔹 Maili arka planda gönder
+    sendVerificationEmail(user.email, verificationToken).catch(err => {
+      console.error("E-posta gönderilemedi:", err);
+    });
+
+  } catch (error) {
+    next(error);
+  }
+});
+
+// E-posta gönderme fonksiyonu
 async function sendVerificationEmail(userEmail, token, subject, text) {
   const transporter = nodemailer.createTransport({
     service: "Gmail",
     auth: {
-      user: process.env.EMAIL_USER, // kendi gmail adresin
-      pass: process.env.EMAIL_PASS, // uygulama şifren
+      user: process.env.EMAIL_USER,
+      pass: process.env.EMAIL_PASS,
     },
+    tls: { rejectUnauthorized: false }, // Bazı Render ortamları için
+    connectionTimeout: 20000, // 20 saniye
   });
 
   const mailOptions = {
@@ -33,40 +85,6 @@ async function sendVerificationEmail(userEmail, token, subject, text) {
   await transporter.sendMail(mailOptions);
 }
 
-// Kayıt
-const register = asyncHandler(async (req, res, next) => {
-  const { name, email, password, role } = req.body;
-
-  // Email kontrolü
-  const existingUser = await User.findOne({ email });
-  if (existingUser) {
-    return next(new ApiError(400, "Bu email adresi zaten kayıtlı"));
-  }
-
-  const hashedPassword = await bcrypt.hash(password, 10);
-
-  // Doğrulama tokenı oluştur
-  const verificationToken = crypto.randomBytes(32).toString("hex");
-
-  // Kullanıcı oluştur
-  const user = await User.create({
-    name,
-    email,
-    password: hashedPassword,
-    role,
-    isVerified: false,
-    verificationToken,
-  });
-
-  // Doğrulama maili gönder
-  await sendVerificationEmail(user.email, verificationToken);
-
-  res.status(201).json(
-    new ApiResponse(201, "Kayıt başarılı. Lütfen e-postanızı doğrulayın.", {
-      user,
-    })
-  );
-});
 
 const verifyEmail = asyncHandler(async (req, res, next) => {
   const { token } = req.params;
