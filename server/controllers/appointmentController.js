@@ -73,22 +73,36 @@ const cancelAppointment = async (req, res) => {
     if (!appointment) {
       return res.status(404).json({ message: "Randevu bulunamadı." });
     }
-    // Sadece hasta veya doktor iptal edebilir
+
     const userId = req.user.id;
-    if (
-      appointment.patient.toString() !== userId &&
-      appointment.doctor.toString() !== userId
-    ) {
+    let authorizedId = userId; // Varsayılan yetkili ID, hasta için olan kullanıcı ID'sidir
+
+    // Eğer kullanıcı doktorsa, authorizedId'yi doktorun kendi ID'si ile güncelliyoruz
+    if (req.user.role === "doctor") {
+      const doctorProfile = await Doctor.findOne({ user: userId });
+      if (doctorProfile) {
+        authorizedId = doctorProfile._id.toString();
+      }
+    }
+
+    // Yetki kontrolü: Kullanıcı randevunun hastası veya doktoru mu?
+    const isPatient = appointment.patient.toString() === userId;
+    const isDoctor = appointment.doctor.toString() === authorizedId;
+
+    if (!isPatient && !isDoctor) { // Kullanıcı bu iki rolden birine sahip değilse
       return res
         .status(403)
         .json({ message: "Bu randevuyu iptal etme yetkiniz yok." });
     }
+
     if (appointment.status === "cancelled") {
       return res.status(400).json({ message: "Randevu zaten iptal edilmiş." });
     }
+
     appointment.status = "cancelled";
     await appointment.save();
     res.json({ message: "Randevu başarıyla iptal edildi.", appointment });
+
   } catch (error) {
     res
       .status(500)
