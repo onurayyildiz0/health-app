@@ -47,8 +47,13 @@ const swaggerOptions = {
     },
     servers: [
       {
-        url: process.env.APP_URL,
+        url: "https://health-app-xequ.onrender.com",
+        description: "Render (Canlı)"
       },
+      {
+        url: "http://localhost:3000",
+        description: "Local"
+      }
     ],
     components: {
       securitySchemes: {
@@ -59,14 +64,12 @@ const swaggerOptions = {
         },
       },
     },
-    security: [
-      {
-        bearerAuth: [],
-      },
-    ],
+    security: [{ bearerAuth: [] }],
   },
   apis: ["./routes/*.js"],
 };
+
+
 
 const swaggerSpec = swaggerJsdoc(swaggerOptions);
 app.use("/api-docs", swaggerUi.serve, swaggerUi.setup(swaggerSpec));
