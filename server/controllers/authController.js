@@ -16,19 +16,14 @@ const register = asyncHandler(async (req, res, next) => {
   const { name, email, password, role } = req.body;
 
   try {
-    // Email kontrolü
     const existingUser = await User.findOne({ email });
     if (existingUser) {
       return next(new ApiError(400, "Bu email adresi zaten kayıtlı"));
     }
 
-    // Şifreyi hashle
     const hashedPassword = await bcrypt.hash(password, 10);
-
-    // Doğrulama tokenı oluştur
     const verificationToken = crypto.randomBytes(32).toString("hex");
 
-    // Kullanıcı oluştur
     const user = await User.create({
       name,
       email,
@@ -38,7 +33,7 @@ const register = asyncHandler(async (req, res, next) => {
       verificationToken,
     });
 
-    // 🔹 Response’u hemen dön (mail beklenmeden)
+    // 🔹 Response'u hemen dön
     res.status(201).json(
       new ApiResponse(201, "Kayıt başarılı. Lütfen e-postanızı doğrulayın.", {
         user: {
@@ -52,9 +47,7 @@ const register = asyncHandler(async (req, res, next) => {
     );
 
     // 🔹 Maili arka planda gönder
-    sendVerificationEmail(user.email, verificationToken).catch(err => {
-      console.error("E-posta gönderilemedi:", err);
-    });
+    sendVerificationEmail(user.email, verificationToken);
 
   } catch (error) {
     next(error);
@@ -64,13 +57,17 @@ const register = asyncHandler(async (req, res, next) => {
 // E-posta gönderme fonksiyonu
 async function sendVerificationEmail(userEmail, token, subject, text) {
   const transporter = nodemailer.createTransport({
-    service: "Gmail",
+    host: "smtp.gmail.com",  // Gmail SMTP host
+    port: 587,               // TLS portu
+    secure: false,           // STARTTLS kullanacak
     auth: {
       user: process.env.EMAIL_USER,
-      pass: process.env.EMAIL_PASS,
+      pass: process.env.EMAIL_PASS, // Gmail app password
     },
-    tls: { rejectUnauthorized: false }, // Bazı Render ortamları için
-    connectionTimeout: 20000, // 20 saniye
+    tls: {
+      rejectUnauthorized: false,   // Render ortamında TLS sorunlarını önler
+    },
+    connectionTimeout: 20000,      // 20 saniye
   });
 
   const mailOptions = {
@@ -82,8 +79,12 @@ async function sendVerificationEmail(userEmail, token, subject, text) {
       `Hesabınızı doğrulamak için şu linke tıklayın: ${process.env.APP_URL}/api/auth/verify/${token}`,
   };
 
-  await transporter.sendMail(mailOptions);
+  // Response öncesi await kullanma, timeout olmasın
+  transporter.sendMail(mailOptions).catch(err => {
+    console.error("❌ Mail gönderilemedi:", err);
+  });
 }
+
 
 
 const verifyEmail = asyncHandler(async (req, res, next) => {
