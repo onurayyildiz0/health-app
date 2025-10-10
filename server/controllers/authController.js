@@ -27,7 +27,7 @@ async function sendVerificationEmail(userEmail, token, subject, text) {
     subject: subject || "Hesap Doğrulama",
     text:
       text ||
-      `Hesabınızı doğrulamak için şu linke tıklayın: http://localhost:${process.env.PORT}/api/auth/verify/${token}`,
+      `Hesabınızı doğrulamak için şu linke tıklayın: ${process.env.APP_URL}/api/auth/verify/${token}`,
   };
 
   await transporter.sendMail(mailOptions);
