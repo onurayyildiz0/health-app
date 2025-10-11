@@ -1,7 +1,8 @@
 const User = require("../models/User");
 const bcrypt = require("bcryptjs");
 const crypto = require("crypto");
-const nodemailer = require("nodemailer");
+//const nodemailer = require("nodemailer");
+const sgMail = require("@sendgrid/mail");
 const ApiError = require("../utils/ApiError");
 const ApiResponse = require("../utils/ApiResponse");
 const asyncHandler = require("../utils/asyncHandler");
@@ -57,53 +58,32 @@ const register = asyncHandler(async (req, res, next) => {
 
 // E-posta gönderme fonksiyonu
 async function sendVerificationEmail(userEmail, token, subject, text) {
+
+  sgMail.setApiKey(process.env.SENDGRID_API_KEY);
+
+  const msg = {
+    to: userEmail,
+    from: "healtysystemapp@gmail.com", // SendGrid'de doğruladığınız e-posta adresi
+    subject: subject || "Hesap Doğrulama",
+    // E-postanın metin versiyonu (HTML desteklemeyen istemciler için)
+    text: text || `Hesabınızı doğrulamak için lütfen aşağıdaki linke tıklayın: ${process.env.APP_URL}/api/auth/verify/${token}`,
+    // E-postanın güzel görünen HTML versiyonu
+    html:
+      text ||
+      `<strong>Hesabınızı doğrulamak için şu linke tıklayın:</strong> <a href="${process.env.APP_URL}/api/auth/verify/${token}">Doğrulama Linki</a>`,
+  };
+
   try {
-    // Environment değişkenlerini kontrol et
-    if (!process.env.EMAIL_USER || !process.env.EMAIL_PASS) {
-      logger.error("❌ EMAIL_USER veya EMAIL_PASS environment değişkenleri tanımlanmamış!");
-      logger.error("Lütfen Render Dashboard'da Environment Variables bölümünden bu değişkenleri ekleyin:");
-      logger.error("EMAIL_USER: Gmail adresiniz (örn: ornekmail@gmail.com)");
-      logger.error("EMAIL_PASS: Gmail app password (2FA açık olmalı)");
-      return;
+    await sgMail.send(msg);
+    console.log(`E-posta başarıyla ${userEmail} adresine gönderildi.`);
+  } catch (error) {
+    // Hata olursa konsola detaylı bir şekilde yazdırıyoruz
+    console.error("SendGrid e-posta gönderme hatası:", error);
+    if (error.response) {
+      console.error(error.response.body);
     }
-
-    logger.info(`📧 Mail gönderiliyor: ${userEmail}`);
-
-    const transporter = nodemailer.createTransport({
-      host: "smtp.gmail.com",
-      port: 465,               // SSL portu (587 yerine 465 dene)
-      secure: true,            // SSL kullan
-      auth: {
-        user: process.env.EMAIL_USER,
-        pass: process.env.EMAIL_PASS,
-      },
-      connectionTimeout: 30000, // 30 saniye
-      greetingTimeout: 30000,
-    });
-
-    const mailOptions = {
-      from: process.env.EMAIL_USER, // Gmail adresinizi from olarak kullanın
-      to: userEmail,
-      subject: subject || "Hesap Doğrulama",
-      text:
-        text ||
-        `Hesabınızı doğrulamak için şu linke tıklayın: ${process.env.APP_URL}/api/auth/verify/${token}`,
-    };
-
-    // Mail gönder ve sonucu logla
-    await transporter.sendMail(mailOptions);
-    logger.info(`✅ Mail başarıyla gönderildi: ${userEmail}`);
-  } catch (err) {
-    logger.error("❌ Mail gönderilemedi:", {
-      error: err.message,
-      code: err.code,
-      command: err.command,
-      recipient: userEmail
-    });
   }
 }
-
-
 
 const verifyEmail = asyncHandler(async (req, res, next) => {
   const { token } = req.params;
