@@ -1,11 +1,11 @@
 const User = require("../models/User");
-const logger = require("../config/logger");
 const bcrypt = require("bcryptjs");
 const crypto = require("crypto");
 const nodemailer = require("nodemailer");
 const ApiError = require("../utils/ApiError");
 const ApiResponse = require("../utils/ApiResponse");
 const asyncHandler = require("../utils/asyncHandler");
+const logger = require("../config/logger");
 const {
   signAccessToken,
   signRefreshToken,
@@ -70,17 +70,15 @@ async function sendVerificationEmail(userEmail, token, subject, text) {
     logger.info(`📧 Mail gönderiliyor: ${userEmail}`);
 
     const transporter = nodemailer.createTransport({
-      host: "smtp.gmail.com",  // Gmail SMTP host
-      port: 587,               // TLS portu
-      secure: false,           // STARTTLS kullanacak
+      host: "smtp.gmail.com",
+      port: 465,               // SSL portu (587 yerine 465 dene)
+      secure: true,            // SSL kullan
       auth: {
         user: process.env.EMAIL_USER,
-        pass: process.env.EMAIL_PASS, // Gmail app password
+        pass: process.env.EMAIL_PASS,
       },
-      tls: {
-        rejectUnauthorized: false,   // Render ortamında TLS sorunlarını önler
-      },
-      connectionTimeout: 20000,      // 20 saniye
+      connectionTimeout: 30000, // 30 saniye
+      greetingTimeout: 30000,
     });
 
     const mailOptions = {
