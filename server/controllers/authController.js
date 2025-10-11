@@ -56,33 +56,52 @@ const register = asyncHandler(async (req, res, next) => {
 
 // E-posta gönderme fonksiyonu
 async function sendVerificationEmail(userEmail, token, subject, text) {
-  const transporter = nodemailer.createTransport({
-    host: "smtp.gmail.com",  // Gmail SMTP host
-    port: 587,               // TLS portu
-    secure: false,           // STARTTLS kullanacak
-    auth: {
-      user: process.env.EMAIL_USER,
-      pass: process.env.EMAIL_PASS, // Gmail app password
-    },
-    tls: {
-      rejectUnauthorized: false,   // Render ortamında TLS sorunlarını önler
-    },
-    connectionTimeout: 20000,      // 20 saniye
-  });
+  try {
+    // Environment değişkenlerini kontrol et
+    if (!process.env.EMAIL_USER || !process.env.EMAIL_PASS) {
+      logger.error("❌ EMAIL_USER veya EMAIL_PASS environment değişkenleri tanımlanmamış!");
+      logger.error("Lütfen Render Dashboard'da Environment Variables bölümünden bu değişkenleri ekleyin:");
+      logger.error("EMAIL_USER: Gmail adresiniz (örn: ornekmail@gmail.com)");
+      logger.error("EMAIL_PASS: Gmail app password (2FA açık olmalı)");
+      return;
+    }
 
-  const mailOptions = {
-    from: "hospital@example.com",
-    to: userEmail,
-    subject: subject || "Hesap Doğrulama",
-    text:
-      text ||
-      `Hesabınızı doğrulamak için şu linke tıklayın: ${process.env.APP_URL}/api/auth/verify/${token}`,
-  };
+    logger.info(`📧 Mail gönderiliyor: ${userEmail}`);
 
-  // Response öncesi await kullanma, timeout olmasın
-  transporter.sendMail(mailOptions).catch(err => {
-    console.error("❌ Mail gönderilemedi:", err);
-  });
+    const transporter = nodemailer.createTransport({
+      host: "smtp.gmail.com",  // Gmail SMTP host
+      port: 587,               // TLS portu
+      secure: false,           // STARTTLS kullanacak
+      auth: {
+        user: process.env.EMAIL_USER,
+        pass: process.env.EMAIL_PASS, // Gmail app password
+      },
+      tls: {
+        rejectUnauthorized: false,   // Render ortamında TLS sorunlarını önler
+      },
+      connectionTimeout: 20000,      // 20 saniye
+    });
+
+    const mailOptions = {
+      from: process.env.EMAIL_USER, // Gmail adresinizi from olarak kullanın
+      to: userEmail,
+      subject: subject || "Hesap Doğrulama",
+      text:
+        text ||
+        `Hesabınızı doğrulamak için şu linke tıklayın: ${process.env.APP_URL}/api/auth/verify/${token}`,
+    };
+
+    // Mail gönder ve sonucu logla
+    await transporter.sendMail(mailOptions);
+    logger.info(`✅ Mail başarıyla gönderildi: ${userEmail}`);
+  } catch (err) {
+    logger.error("❌ Mail gönderilemedi:", {
+      error: err.message,
+      code: err.code,
+      command: err.command,
+      recipient: userEmail
+    });
+  }
 }
 
 
