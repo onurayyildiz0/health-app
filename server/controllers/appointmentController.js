@@ -129,9 +129,31 @@ const getDoctorAppointments = async (req, res) => {
   }
 };
 
+// Hasta randevularını getir (Patient)
+const getPatientAppointments = async (req, res) => {
+  try {
+    // JWT'den gelen user id (patient)
+    const patientId = req.user.id;
+
+    const appointments = await Appointment.find({ patient: patientId })
+      .populate({
+        path: "doctor",
+        populate: { path: "user", select: "name email" }
+      })
+      .sort({ date: 1, start: 1 });
+
+    res.json(appointments);
+  } catch (error) {
+    res
+      .status(500)
+      .json({ message: "Hasta randevuları alınırken hata oluştu.", error });
+  }
+};
+
 module.exports = {
   createAppointment,
   getAppointmentDetails,
   cancelAppointment,
   getDoctorAppointments,
+  getPatientAppointments,
 };

@@ -7,6 +7,7 @@ const {
   getAppointmentDetails,
   cancelAppointment,
   getDoctorAppointments,
+  getPatientAppointments,
 } = require("../controllers/appointmentController");
 
 const { auth, authorizeRoles } = require("../middlewares/auth");
@@ -95,6 +96,21 @@ router.post(
  *         description: Doktorun randevuları listelendi
  */
 router.get("/doctor", auth, authorizeRoles("doctor"), getDoctorAppointments);
+
+// Hastanın randevularını getir (Patient)
+/**
+ * @swagger
+ * /api/appointments/patient:
+ *   get:
+ *     summary: Hastanın tüm randevularını getirir
+ *     tags: [Appointment]
+ *     security:
+ *       - bearerAuth: []
+ *     responses:
+ *       200:
+ *         description: Hastanın randevuları listelendi
+ */
+router.get("/patient", auth, authorizeRoles("patient"), getPatientAppointments);
 
 // Randevu detaylarını getir
 /**

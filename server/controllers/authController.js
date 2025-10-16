@@ -125,7 +125,12 @@ const login = asyncHandler(async (req, res, next) => {
   const accessToken = signAccessToken(payload);
   const refreshToken = signRefreshToken(payload);
 
-  // Refresh token'ı kaydet
+  // ✅ Eski refresh token'ları temizle (sadece son 3 tanesini tut)
+  if (user.refreshTokens.length >= 3) {
+    user.refreshTokens = user.refreshTokens.slice(-2); // Son 2 token'ı tut
+  }
+
+  // Yeni refresh token'ı ekle
   user.refreshTokens.push(refreshToken);
   await user.save();
 
