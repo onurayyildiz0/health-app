@@ -2,6 +2,25 @@ const Appointment = require("../models/Appointment");
 const Doctor = require("../models/Doctor");
 
 const createAppointment = async (req, res) => {
+  // Bugünün geçmiş saatine randevu alınmasını engelle
+  const today = new Date();
+  const appointmentDate = new Date(date);
+  if (
+    appointmentDate.toDateString() === today.toDateString()
+  ) {
+    // start: "HH:mm" formatında
+    const [startHour, startMinute] = start.split(":").map(Number);
+    const nowHour = today.getHours();
+    const nowMinute = today.getMinutes();
+    if (
+      startHour < nowHour ||
+      (startHour === nowHour && startMinute <= nowMinute)
+    ) {
+      return res.status(400).json({
+        message: "Geçmiş bir saate randevu alınamaz. Lütfen ileri bir saat seçin.",
+      });
+    }
+  }
   try {
     const { doctor, date, start, notes } = req.body;
     const patient = req.user.id; // JWT ile gelen kullanıcı id
