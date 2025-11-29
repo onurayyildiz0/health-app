@@ -257,6 +257,7 @@ const getMyDoctorProfile = async (req, res) => {
     }
     res.status(200).json(doctor);
   } catch (error) {
+    console.log("getMyDoctorProfile error:", error);
     res.status(500).json({ message: "Profil alınırken hata oluştu.", error });
   }
 };
