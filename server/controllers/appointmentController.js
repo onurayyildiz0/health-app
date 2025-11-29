@@ -2,6 +2,7 @@ const Appointment = require("../models/Appointment");
 const Doctor = require("../models/Doctor");
 
 const createAppointment = async (req, res) => {
+  const { doctor, date, start, notes } = req.body;
   // Bugünün geçmiş saatine randevu alınmasını engelle
   const today = new Date();
   const appointmentDate = new Date(date);
@@ -22,7 +23,6 @@ const createAppointment = async (req, res) => {
     }
   }
   try {
-    const { doctor, date, start, notes } = req.body;
     const patient = req.user.id; // JWT ile gelen kullanıcı id
 
     // Doktorun varlığını kontrol et
