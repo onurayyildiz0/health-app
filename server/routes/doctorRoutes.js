@@ -3,7 +3,7 @@ const router = express.Router();
 const { body } = require("express-validator");
 const validate = require("../middlewares/validate");
 
-const { getMyClocks, createDoctor, getAllDoctors, getDoctorById, deleteDoctor, updateDoctor, getDoctorsBySpeciality, getDoctorReviews, getDoctorsByMaxRating, setDoctorSchedule, addHealthHistory } = require("../controllers/doctorController");
+const { getMyClocks, createDoctor, getAllDoctors, getDoctorById, deleteDoctor, updateDoctor, getDoctorsBySpeciality, getDoctorReviews, getDoctorsByMaxRating, setDoctorSchedule, addHealthHistory, getMyDoctorProfile } = require("../controllers/doctorController");
 
 const { auth, authorizeRoles } = require("../middlewares/auth");
 
@@ -264,5 +264,10 @@ router.post(
   authorizeRoles("doctor"),
   addHealthHistory
 );
+
+router.get('/me', auth, authorizeRoles('doctor'), getMyDoctorProfile);
+
+
+
 
 module.exports = router;

@@ -248,6 +248,18 @@ const addHealthHistory = async (req, res) => {
   res.json({ success: true, message: "Sağlık geçmişi eklendi." });
 };
 
+
+const getMyDoctorProfile = async (req, res) => {
+  try {
+    const doctor = await Doctor.findOne({ user: req.user.id });
+    if (!doctor) {
+      return res.status(404).json({ message: "Doktor bulunamadı." });
+    }
+    res.status(200).json(doctor);
+  } catch (error) {
+    res.status(500).json({ message: "Profil alınırken hata oluştu.", error });
+  }
+};
 module.exports = {
   createDoctor,
   //getAllDoctors,
@@ -259,4 +271,5 @@ module.exports = {
   getDoctorsByMaxRating,
   setDoctorSchedule,
   addHealthHistory,
+  getMyDoctorProfile
 };
