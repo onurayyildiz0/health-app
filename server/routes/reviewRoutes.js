@@ -3,6 +3,7 @@ const {
   addReview,
   getReviews,
   deleteReview,
+  updateDoctorStats
 } = require("../controllers/reviewController");
 
 const { auth, authorizeRoles } = require("../middlewares/auth");

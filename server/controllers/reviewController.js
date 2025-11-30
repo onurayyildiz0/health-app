@@ -1,5 +1,40 @@
+const mongoose = require("mongoose"); // Aggregation için gerekli
 const Review = require("../models/Review");
 const Doctor = require("../models/Doctor");
+
+// YARDIMCI FONKSİYON: Doktorun ortalama puanını ve yorum sayısını hesaplar
+const updateDoctorStats = async (doctorId) => {
+  try {
+    const stats = await Review.aggregate([
+      {
+        $match: { doctor: new mongoose.Types.ObjectId(doctorId) },
+      },
+      {
+        $group: {
+          _id: "$doctor",
+          nRating: { $sum: 1 }, // Toplam yorum sayısı
+          avgRating: { $avg: "$rating" }, // Puan ortalaması
+        },
+      },
+    ]);
+
+    // Eğer yorum varsa hesaplanan değerleri, yoksa 0 değerlerini kaydet
+    if (stats.length > 0) {
+      await Doctor.findByIdAndUpdate(doctorId, {
+        rating: stats[0].avgRating,
+        reviewCount: stats[0].nRating,
+      });
+    } else {
+      // Hiç yorum kalmadıysa (son yorum silindiyse)
+      await Doctor.findByIdAndUpdate(doctorId, {
+        rating: 0,
+        reviewCount: 0,
+      });
+    }
+  } catch (error) {
+    console.error("Doktor puanı güncellenirken hata:", error);
+  }
+};
 
 // Değerlendirme ekleme
 const addReview = async (req, res) => {
@@ -28,6 +63,9 @@ const addReview = async (req, res) => {
 
     await review.save();
 
+    // *** BURASI EKLENDİ: Puanı hesapla ve Doktora kaydet ***
+    await updateDoctorStats(doctorId);
+
     res
       .status(201)
       .json({ message: "Değerlendirme başarıyla eklendi.", review });
@@ -44,7 +82,7 @@ const getReviews = async (req, res) => {
     const doctorId = req.params.doctorId;
 
     const reviews = await Review.find({ doctor: doctorId })
-      .populate("patient", "name email")
+      .populate("patient", "name email avatar") // Avatarı da çekmek isteyebilirsin frontendde kullanıyorsun
       .sort({ createdAt: -1 });
 
     res.status(200).json(reviews);
@@ -66,6 +104,9 @@ const deleteReview = async (req, res) => {
       return res.status(404).json({ message: "Değerlendirme bulunamadı." });
     }
 
+    // Silmeden önce doctorId'yi alalım ki sonra puanı güncelleyebilelim
+    const doctorId = review.doctor;
+
     // Değerlendirmeyi sadece hasta veya admin silebilir
     if (
       review.patient.toString() !== req.user.id &&
@@ -77,6 +118,10 @@ const deleteReview = async (req, res) => {
     }
 
     await review.deleteOne();
+
+    // *** BURASI EKLENDİ: Silindikten sonra puanı tekrar hesapla ***
+    await updateDoctorStats(doctorId);
+
     res.status(200).json({ message: "Değerlendirme başarıyla silindi." });
   } catch (error) {
     res
@@ -89,4 +134,5 @@ module.exports = {
   addReview,
   getReviews,
   deleteReview,
+  
 };

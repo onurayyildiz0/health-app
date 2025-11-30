@@ -97,6 +97,10 @@ const getDoctorsBySpeciality = async (req, res) => {
     const filter = {};
     if (speciality) filter.speciality = speciality;
 
+
+    if (minRating) {
+        filter.rating = { $gte: Number(minRating) }; 
+    }
     // Arama (isim veya branş)
     let aggregatePipeline = [
       { $match: filter },
@@ -251,16 +255,78 @@ const addHealthHistory = async (req, res) => {
 
 const getMyDoctorProfile = async (req, res) => {
   try {
+    console.log("--- DEBUG START ---");
+    console.log("1. Middleware'den gelen User:", req.user);
+
+    // Middleware'inde "req.userId = decoded.id" demiştin.
+    // Ancak token'da "_id" yazıyor olabilir. İkisini de kontrol edelim:
+    const userId = req.userId || req.user?.id || req.user?._id;
+
+    console.log("2. Tespit edilen User ID:", userId);
+
+    if (!userId) {
+      console.log("HATA: User ID bulunamadı via Token");
+      return res.status(401).json({ message: "Kimlik bilgisi doğrulanamadı (Token ID eksik)" });
+    }
+
+    // Sorguyu yapıyoruz
+    const doctor = await Doctor.findOne({ user: userId });
+
+    console.log("3. Bulunan Doktor:", doctor);
+
+    if (!doctor) {
+      // Doktor bulunamadıysa 404 dönüyoruz
+      return res.status(404).json({ message: "Doktor profili bulunamadı." });
+    }
+
+    // Başarılı yanıt
+    res.status(200).json({
+      doctorId: doctor._id,
+      user: doctor.user,
+      speciality: doctor.speciality,
+      // clocks yoksa boş obje yolla ki frontend patlamasın
+      clocks: doctor.clocks || {},
+      unavailableDates: doctor.unavailableDates || []
+    });
+
+  } catch (error) {
+    console.error("KRİTİK HATA (500):", error);
+    // Hatanın ne olduğunu frontend'e de gönderelim ki görebil:
+    res.status(500).json({ message: "Sunucu hatası", error: error.message, stack: error.stack });
+  }
+};
+
+
+const addUnavailableDate = async (req, res) => {
+  try {
+    const { startDate, endDate, reason } = req.body;
+
+    // Tarihlerin geçerliliğini kontrol et
+    if (new Date(startDate) > new Date(endDate)) {
+      return res.status(400).json({ message: "Başlangıç tarihi bitiş tarihinden sonra olamaz." });
+    }
+
     const doctor = await Doctor.findOne({ user: req.user.id });
     if (!doctor) {
       return res.status(404).json({ message: "Doktor bulunamadı." });
     }
-    res.status(200).json(doctor);
+
+    // Tarih aralığını diziye it (push)
+    doctor.unavailableDates.push({
+      startDate: new Date(startDate),
+      endDate: new Date(endDate),
+      reason
+    });
+
+    await doctor.save();
+    res.status(200).json({ message: "İzin tarihleri başarıyla eklendi.", unavailableDates: doctor.unavailableDates });
+
   } catch (error) {
-    console.log("getMyDoctorProfile error:", error);
-    res.status(500).json({ message: "Profil alınırken hata oluştu.", error });
+    res.status(500).json({ message: "İzin eklenirken hata oluştu.", error });
   }
 };
+
+
 module.exports = {
   createDoctor,
   //getAllDoctors,
@@ -272,5 +338,6 @@ module.exports = {
   getDoctorsByMaxRating,
   setDoctorSchedule,
   addHealthHistory,
-  getMyDoctorProfile
+  getMyDoctorProfile,
+  addUnavailableDate
 };

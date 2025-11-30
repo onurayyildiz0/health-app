@@ -3,13 +3,11 @@ const Doctor = require("../models/Doctor");
 
 const createAppointment = async (req, res) => {
   const { doctor, date, start, notes } = req.body;
-  // Bugünün geçmiş saatine randevu alınmasını engelle
+
+  // 1. KONTROL: Bugünün geçmiş saatine randevu alınmasını engelle
   const today = new Date();
   const appointmentDate = new Date(date);
-  if (
-    appointmentDate.toDateString() === today.toDateString()
-  ) {
-    // start: "HH:mm" formatında
+  if (appointmentDate.toDateString() === today.toDateString()) {
     const [startHour, startMinute] = start.split(":").map(Number);
     const nowHour = today.getHours();
     const nowMinute = today.getMinutes();
@@ -22,17 +20,17 @@ const createAppointment = async (req, res) => {
       });
     }
   }
+
   try {
     const patient = req.user.id; // JWT ile gelen kullanıcı id
 
-    // Doktorun varlığını kontrol et
+    // 2. KONTROL: Doktorun varlığını kontrol et
     const doctorExists = await Doctor.findById(doctor);
     if (!doctorExists) {
       return res.status(400).json({
         message: "Geçersiz doktor ID. Lütfen geçerli bir doktor seçin.",
       });
     }
-
 
     // start kontrolü
     if (!start) {
@@ -41,11 +39,77 @@ const createAppointment = async (req, res) => {
       });
     }
 
-    // Aynı doktor ve aynı gün, aynı başlangıç saatinde başka randevu var mı?
+
+    // Randevu tarihi (Saat bilgisinden arındırılmış saf tarih kontrolü için)
+    const checkDate = new Date(date);
+
+    // unavailableDates dizisinde dönüp çakışma var mı bakıyoruz
+    if (doctorExists.unavailableDates && doctorExists.unavailableDates.length > 0) {
+
+      const isUnavailable = doctorExists.unavailableDates.some(range => {
+        const start = new Date(range.startDate);
+        const end = new Date(range.endDate);
+
+        // Tarihleri karşılaştırırken saat farkını yok saymak için setHours(0,0,0,0) kullanabilirsin
+        // ya da basitçe: Randevu tarihi >= Başlangıç VE Randevu tarihi <= Bitiş
+        return checkDate >= start && checkDate <= end;
+      });
+
+      if (isUnavailable) {
+        return res.status(400).json({
+          message: "Doktor bu tarihler arasında izinlidir/müsait değildir. Lütfen başka bir tarih seçin."
+        });
+      }
+    }
+
+    // ============================================================
+    // YENİ EKLENEN KISIM: Doktorun Çalışma Saatleri Kontrolü
+    // ============================================================
+
+    // A) Hangi gün olduğunu bul (Javascript'te 0=Pazar, 1=Pazartesi...)
+    const days = ['sunday', 'monday', 'tuesday', 'wednesday', 'thursday', 'friday', 'saturday'];
+    const dayName = days[appointmentDate.getDay()];
+
+    // B) Doktorun o günkü ayarlarını çek
+    // doctorExists.clocks veritabanından geliyor (senin schema'na göre)
+    const daySchedule = doctorExists.clocks ? doctorExists.clocks[dayName] : null;
+
+    // C) Eğer o gün için saat girilmemişse veya doktor çalışmıyorsa
+    if (!daySchedule || !daySchedule.start || !daySchedule.end) {
+      return res.status(400).json({
+        message: `Doktor ${dayName === 'sunday' ? 'Pazar' : dayName === 'monday' ? 'Pazartesi' : dayName === 'tuesday' ? 'Salı' : dayName === 'wednesday' ? 'Çarşamba' : dayName === 'thursday' ? 'Perşembe' : dayName === 'friday' ? 'Cuma' : 'Cumartesi'} günü çalışmamaktadır.`
+      });
+    }
+
+    // D) Saatleri dakikaya çevirip kıyaslama fonksiyonu
+    const convertToMinutes = (timeStr) => {
+      const [hours, minutes] = timeStr.split(':').map(Number);
+      return hours * 60 + minutes;
+    };
+
+    const requestTimeMinutes = convertToMinutes(start);
+    const startTimeMinutes = convertToMinutes(daySchedule.start);
+    const endTimeMinutes = convertToMinutes(daySchedule.end);
+
+    // E) Kıyaslama: İstenen saat, Başlangıçtan küçükse VEYA Bitişten büyük/eşitse HATA VER
+    // Örn: Doktor 09:00-10:00 çalışıyor. İstek 14:00. 
+    // 14:00 (840dk) >= 10:00 (600dk) olduğu için hata verir.
+    if (requestTimeMinutes < startTimeMinutes || requestTimeMinutes >= endTimeMinutes) {
+      return res.status(400).json({
+        message: `Bu saatte randevu alınamaz. Doktorun çalışma saatleri: ${daySchedule.start} - ${daySchedule.end}`
+      });
+    }
+    // ============================================================
+    // BİTİŞ: Çalışma Saatleri Kontrolü
+    // ============================================================
+
+
+    // 3. KONTROL: Çakışan randevu var mı?
     const overlappingAppointment = await Appointment.findOne({
       doctor,
       date,
       start,
+      status: { $ne: 'cancelled' } // İptal edilmiş randevular çakışma yaratmaz
     });
 
     if (overlappingAppointment) {

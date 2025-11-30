@@ -64,28 +64,48 @@ const getUsersByRole = async (req, res) => {
   }
 };
 
-const approveDoctor = async (req, res, next) => {
+const approveDoctor = async (req, res) => {
   try {
+    // req.params.id burada Onaylanacak "User"ın ID'si olmalı
     const user = await User.findByIdAndUpdate(
       req.params.id,
       { isDoctorApproved: true },
       { new: true }
     );
-    if (!user) return next(new ApiError(404, "Kullanıcı bulunamadı"));
+    
+    if (!user) {
+        return res.status(404).json({ message: "Kullanıcı bulunamadı" });
+    }
+
     res.json({ message: "Doktor onaylandı", user });
   } catch (err) {
-    next(err);
+    res.status(500).json({ message: err.message });
   }
 };
-
 // Get pending doctors (awaiting approval)
 const getPendingDoctors = async (req, res) => {
   try {
-    const pendingDoctors = await User.find({
+    // 1. Önce onayı olmayan (isDoctorApproved: false) ve rolü doctor olan KULLANICILARI bul
+    const unapprovedUsers = await User.find({
       role: 'doctor',
       isDoctorApproved: false
-    }).select('name email createdAt doctorDocuments');
+    }).select('_id'); // Sadece ID'lerini al
 
+    // ID'leri bir listeye çevir
+    const userIds = unapprovedUsers.map(u => u._id);
+
+    // 2. Şimdi bu User ID'lerine sahip olan DOKTOR profillerini bul
+    // ve user bilgilerini (isim, email, avatar vs.) içine göm (populate)
+    const pendingDoctors = await Doctor.find({
+      user: { $in: userIds }
+    })
+    .populate('user', 'name email avatar doctorDocuments createdAt'); 
+
+    // Frontend'e şu formatta gider:
+    // [
+    //   { _id: "docId", speciality: "Kardiyoloji", user: { name: "Ahmet", email: "..." } }
+    // ]
+    
     res.status(200).json(pendingDoctors);
   } catch (error) {
     res.status(500).json({ message: error.message });
@@ -98,7 +118,6 @@ const deleteUser = async (req, res) => {
     if (!user) {
       return res.status(404).json({ message: "Kullanıcı bulunamadı." });
     }
-    // Eğer silinen kullanıcı doktor ise, ona bağlı Doctor kaydını da sil
     if (user.role === "doctor") {
       await Doctor.deleteOne({ user: user._id });
     }
@@ -107,6 +126,8 @@ const deleteUser = async (req, res) => {
     res.status(500).json({ message: error.message });
   }
 };
+
+
 
 module.exports = {
   createAdmin,
