@@ -8,40 +8,45 @@ function sanitize(obj) {
   if (typeof obj !== "object" || obj === null) return obj;
 
   for (let key in obj) {
-    // MongoDB injection riskli key'leri sil
     if (/^\$/.test(key) || key.includes(".")) {
       delete obj[key];
     } else {
-      obj[key] = sanitize(obj[key]); // recursive sanitize
+      obj[key] = sanitize(obj[key]);
     }
   }
   return obj;
 }
 
 const applySecurity = (app) => {
-  // Helmet - güvenlik headers
+  // Helmet
   app.use(
     helmet({
-      contentSecurityPolicy: false, // Swagger için devre dışı
+      contentSecurityPolicy: false,
       crossOriginEmbedderPolicy: false,
     })
   );
 
-  // CORS
+  // --- GÜNCELLENMİŞ CORS AYARI ---
   const corsOptions = {
     origin: (origin, callback) => {
+      // 1. Env değişkenini al, virgüle böl ve BOŞLUKLARI TEMİZLE (.trim())
       const allowedOrigins = (process.env.CORS_ORIGINS || "")
         .split(",")
+        .map((origin) => origin.trim()) // Boşluk hatasını önler
         .filter(Boolean);
 
-      if (process.env.NODE_ENV === "development") {
-        return callback(null, true);
-      }
+      // 2. DEBUG: Render Loglarında ne olup bittiğini görmek için
+      // (Sorun çözülünce bu console.log'ları silebilirsin)
+      console.log("Gelen İstek Origin:", origin);
+      console.log("İzin Verilenler:", allowedOrigins);
 
+      // 3. Kontrol Mantığı
+      // !origin: Postman, Mobile App veya Server-to-Server istekler için izin ver
       if (!origin || allowedOrigins.includes(origin)) {
         callback(null, true);
       } else {
-        callback(new Error("CORS policy tarafından engellenmiş"));
+        console.error("CORS Engellendi:", origin);
+        callback(new Error("CORS policy tarafindan engellenmis origin: " + origin));
       }
     },
     credentials: true,
@@ -53,8 +58,8 @@ const applySecurity = (app) => {
 
   // Rate limiting
   const limiter = rateLimit({
-    windowMs: Number(process.env.RATE_LIMIT_WINDOW || 15) * 60 * 1000, // 15 dakika
-    max: Number(process.env.RATE_LIMIT_MAX || 100), // limit each IP to 100 requests per windowMs
+    windowMs: Number(process.env.RATE_LIMIT_WINDOW || 15) * 60 * 1000,
+    max: Number(process.env.RATE_LIMIT_MAX || 100),
     message: {
       success: false,
       message: "Çok fazla istek gönderildi, lütfen daha sonra tekrar deneyin",
@@ -65,15 +70,15 @@ const applySecurity = (app) => {
 
   app.use("/api", limiter);
 
-  // XSS + NoSQL injection temizleme
+  // XSS + NoSQL temizleme
   app.use((req, res, next) => {
     if (req.body) req.body = sanitize(req.body);
-    if (req.query) req.query = sanitize({ ...req.query }); // spread → getter overwrite etmez
+    if (req.query) req.query = sanitize({ ...req.query });
     if (req.params) req.params = sanitize(req.params);
     next();
   });
 
-  // HTTP parametre kirlenmesi önleme
+  // HPP
   app.use(
     hpp({
       whitelist: ["sort", "fields", "page", "limit", "category"],
